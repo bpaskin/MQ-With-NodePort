@@ -1,0 +1,49 @@
+# For CP4I 2023.4 (OCP 4.12 - 4.17)
+# After applying this with the oc command, 
+# 1. get the entitlement key https://myibm.ibm.com/products-services/containerlibrary
+# 2. update OCP with the userid and entitlement key using the command "oc create secret docker-registry ibm-entitlement-key --docker-server=cp.icr.io --docker-username=cp --docker-password=ENTITLEMENT_KEY --docker-email=OCP_LOGIN_CREDENTIALS"
+---
+apiVersion: project.openshift.io/v1
+description: "IBM MQ"
+displayName: ibmmq
+kind: ProjectRequest
+metadata:
+    name: ibmmq
+---
+# IBM Operator Catalog
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: ibm-operator-catalog
+  namespace: openshift-marketplace
+spec:
+  displayName: ibm-operator-catalog 
+  publisher: IBM Content
+  sourceType: grpc
+  image: icr.io/cpopen/ibm-operator-catalog
+  updateStrategy:
+    registryPoll:
+      interval: 45m
+---
+# Creates the necessary security for the Operator under the mq namespace
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: ibm-integration-operatorgroup
+  namespace: ibmmq
+spec:
+  targetNamespaces:
+  - ibmmq
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: ibm-mq
+  namespace: ibmmq
+spec:
+  channel: v3.4
+  installPlanApproval: Automatic
+  name: ibm-mq
+  source: ibm-operator-catalog
+  sourceNamespace: openshift-marketplace
+...

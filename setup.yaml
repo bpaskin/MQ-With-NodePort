@@ -1,0 +1,69 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: mq-mqsc-nonsecure
+  namespace: ibmmq
+data:
+  mqsc: |
+    DEFINE QLOCAL(IN.Q) DEFPSIST(YES) REPLACE
+    DEFINE CHANNEL(CLIENT.TO.NONSECURE) CHLTYPE(SVRCONN) REPLACE
+    ALTER AUTHINFO(SYSTEM.DEFAULT.AUTHINFO.IDPWOS) AUTHTYPE(IDPWOS) ADOPTCTX(YES) CHCKCLNT(NONE) CHCKLOCL(NONE)
+    SET CHLAUTH(CLIENT.TO.NONSECURE) TYPE(BLOCKUSER) USERLIST(NOBODY)
+    REFRESH SECURITY TYPE(CONNAUTH)
+---
+apiVersion: mq.ibm.com/v1beta1
+kind: QueueManager
+metadata:
+  annotations:
+    com.ibm.mq/write-defaults-spec: 'false'
+  namespace: ibmmq
+spec:
+  license:
+    accept: true
+    license: L-EHXT-MQCRN9
+    use: Production
+  queueManager:
+    availability:
+      type: SingleInstance
+    mqsc:
+      - configMap:
+          items:
+            - mqsc
+          name: mq-mqsc-nonsecure
+    name: NONSECURE
+    route:
+      enabled: false
+    storage:
+      persistedData:
+        enabled: false
+      queueManager:
+        type: ephemeral
+  version: 9.4.1.0-r2
+  web:
+    enabled: false
+---
+# oc get infrastructure cluster -o jsonpath='{.status.apiServerURL}' 
+# this will get the OCP API server that can be used with the nodeport on 30000
+kind: Service
+apiVersion: v1
+metadata:
+  name: nonsecure-nodeport
+  namespace: ibmmq
+spec:
+  externalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ports:
+    - name: qmgr
+      protocol: TCP
+      port: 1414
+      targetPort: 1414
+      nodePort: 30000
+  internalTrafficPolicy: Cluster
+  type: NodePort
+  ipFamilyPolicy: SingleStack
+  sessionAffinity: None
+  selector:
+    statefulset.kubernetes.io/pod-name: nonsecure-ibm-mq-0
+...
